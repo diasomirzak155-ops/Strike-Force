@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#101820">
+<title>STRIKE FORCE — Bomb Mission</title>
+<style>
+:root{--cyan:#58e1df;--red:#ff625e;--panel:rgba(7,15,22,.78)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;color:#fff;font-family:system-ui,-apple-system,Segoe UI,sans-serif;touch-action:none}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#hud{position:fixed;inset:0;pointer-events:none}
+.top{position:absolute;top:env(safe-area-inset-top,10px);left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:12px 14px}
+.pill{background:var(--panel);border:1px solid #ffffff22;border-radius:12px;padding:8px 11px;backdrop-filter:blur(8px);font-size:12px;letter-spacing:.06em}
+#health{color:#79f0b1;font-weight:800}#ammo{font-weight:800}
+#objective{position:absolute;top:68px;left:50%;transform:translateX(-50%);white-space:nowrap;color:#d8e8ec;font-size:11px;text-shadow:0 2px 5px #000}
+#crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px}
+#crosshair:before,#crosshair:after{content:"";position:absolute;background:#eaffff;box-shadow:0 0 4px #000}
+#crosshair:before{width:2px;height:18px;left:8px}#crosshair:after{height:2px;width:18px;top:8px}
+#controls{position:absolute;inset:0;pointer-events:none}
+#stick{position:absolute;left:22px;bottom:calc(28px + env(safe-area-inset-bottom));width:116px;height:116px;border-radius:50%;background:#ffffff12;border:1px solid #ffffff40;pointer-events:auto;touch-action:none}
+#knob{position:absolute;width:48px;height:48px;left:33px;top:33px;border-radius:50%;background:#c7f7f577;border:1px solid #d9ffffaa}
+.action{position:absolute;pointer-events:auto;touch-action:none;border:1px solid #ffffff66;color:#fff;background:#14232cdd;border-radius:50%;display:grid;place-items:center;font-weight:800;box-shadow:0 5px 20px #0007}
+#fire{right:22px;bottom:calc(42px + env(safe-area-inset-bottom));width:76px;height:76px;background:#a72c2cdd;border-color:#ff9b91;font-size:13px}
+#reload{right:108px;bottom:calc(48px + env(safe-area-inset-bottom));width:54px;height:54px;font-size:10px}
+#aim{right:112px;bottom:calc(116px + env(safe-area-inset-bottom));width:48px;height:48px;font-size:10px}\n#jump{right:26px;bottom:calc(132px + env(safe-area-inset-bottom));width:52px;height:52px;font-size:9px}\n#plant{left:50%;transform:translateX(-50%);bottom:calc(28px + env(safe-area-inset-bottom));width:84px;height:54px;border-radius:14px;background:#a72c2cdd;border-color:#ff9b91;font-size:10px}\n.team-pick{display:flex;gap:8px;margin:16px 0 8px}.team-pick button{flex:1;padding:11px 8px;border-radius:11px;border:1px solid #ffffff30;background:#ffffff0b;color:#fff;font-weight:800;font-size:12px}.team-pick button.selected{border-color:#58e1df;background:#16464b;color:#fff}\n#siteStatus{position:absolute;top:92px;left:50%;transform:translateX(-50%);display:flex;gap:8px;font-size:10px}\n.siteTag{padding:5px 9px;border-radius:8px;background:#9e2020cc;border:1px solid #ff7777aa;font-weight:900}\n#hint{bottom:calc(164px + env(safe-area-inset-bottom))}
+#hint{position:absolute;bottom:calc(155px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);font-size:10px;color:#d8e8ec;text-shadow:0 2px 5px #000;white-space:nowrap}
+#overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#0b1720ee,#101820dd);z-index:5}
+.card{width:min(440px,100%);padding:26px 22px;border:1px solid #ffffff2b;border-radius:22px;background:#101d27f2;box-shadow:0 20px 70px #0009}
+.eyebrow{font-size:11px;letter-spacing:.22em;color:var(--cyan);font-weight:800}
+h1{font-size:32px;line-height:1;margin:10px 0 8px;letter-spacing:.04em}
+.sub{color:#b6c8ce;font-size:14px;line-height:1.5}
+.stats{display:flex;gap:8px;margin:18px 0}.stat{flex:1;padding:10px;border-radius:12px;background:#ffffff0b;border:1px solid #ffffff16}.stat b{display:block;font-size:17px}.stat small{color:#9fb2ba;font-size:10px}
+button{font:inherit;cursor:pointer}
+#start,#again{width:100%;padding:15px;border:0;border-radius:13px;background:var(--cyan);color:#071619;font-weight:900;letter-spacing:.08em;margin-top:8px}
+.note{font-size:11px;color:#8fa4ad;line-height:1.5;margin-top:14px}
+.hidden{display:none!important}
+#toast{position:absolute;top:43%;left:50%;transform:translate(-50%,-50%);font-size:20px;font-weight:900;text-shadow:0 3px 12px #000;opacity:0;transition:opacity .2s}
+@media(min-width:700px){#plant{bottom:32px}#stick{left:36px;bottom:36px}#fire{right:38px;bottom:42px}#reload{right:132px;bottom:48px}#aim{right:140px;bottom:122px}#jump{right:40px;bottom:142px}}
+</style>
+</head>
+<body>
+<div id="hud">
+ <div class="top">
+  <div class="pill">STRIKE FORCE<br><span style="color:#9db2bb">DESERT TRAINING</span></div>
+  <div class="pill">ЗДОРОВЬЕ <span id="health">100</span></div>
+  <div class="pill">БОТЫ <span id="kills">0</span>/3</div>
+  <div class="pill">ПАТРОНЫ <span id="ammo">30 / 90</span></div>
+ </div>
+ <div id="objective">КОМАНДНЫЙ РЕЖИМ • ЦЕЛЬ: БОМБА</div>\n <div id="siteStatus"><span class="siteTag">A • SITE</span><span class="siteTag">B • SITE</span></div>
+ <div id="crosshair"></div>
+ <div id="toast"></div>
+ <div id="controls">
+  <div id="stick"><div id="knob"></div></div>
+  <button class="action" id="fire">ОГОНЬ</button>
+  <button class="action" id="reload">RELOAD</button>
+  <button class="action" id="aim">ПРИЦЕЛ</button>
+  <button class="action" id="jump">ПРЫЖОК</button>\n  <button class="action" id="plant">ЗАЛОЖИТЬ</button>
+  <div id="hint">ЛЕВАЯ СТОРОНА — ДВИЖЕНИЕ • СПРАВА — ОБЗОР</div>
+ </div>
+</div>
+<div id="overlay">
+ <div class="card" id="intro">
+  <div class="eyebrow">КОМАНДНЫЙ РЕЖИМ • BUILD 0.3</div>
+  <h1>STRIKE<br>FORCE</h1>
+  <div class="sub">DESERT CITY — командная операция. Террористы устанавливают бомбу на A или B. Контртеррористы должны помешать или обезвредить её.</div>
+  <div class="team-pick">
+   <button id="pickT" class="selected" type="button">ТЕРРОРИСТЫ</button>
+   <button id="pickCT" type="button">КОНТРТЕРРОРИСТЫ</button>
+  </div>
+  <div class="stats">
+   <div class="stat"><b>3D</b><small>ОТ ПЕРВОГО ЛИЦА</small></div>
+   <div class="stat"><b>1 vs 3</b><small>ТРЕНИРОВКА</small></div>
+   <div class="stat"><b>iPhone</b><small>СЕНСОРНОЕ УПРАВЛЕНИЕ</small></div>
+  </div>
+  <button id="start">НАЧАТЬ МАТЧ</button>
+  <div class="note">Управление: телефон — джойстик слева, обзор справа, кнопки огня и действия. Компьютер — WASD, мышь, ЛКМ, R, Shift, Space, E — заложить/обезвредить. Бомба ставится только внутри красной зоны A или B. Онлайн-режима пока нет.</div>
+ </div>
+ <div class="card hidden" id="result">
+  <div class="eyebrow">ОПЕРАЦИЯ ЗАВЕРШЕНА</div><h1 id="resultTitle">ПОБЕДА</h1>
+  <div class="sub" id="resultText">Все цели устранены.</div>
+  <button id="again">ИГРАТЬ ЕЩЁ</button>
+ </div>
+</div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x9bb4bd);scene.fog=new THREE.Fog(0x9bb4bd,24,75);
+const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,100);camera.position.set(0,1.7,8);scene.add(camera);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'low-power'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
+document.body.prepend(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xe6f5ff,0x8b6946,2));
+const sun=new THREE.DirectionalLight(0xffe2b5,2.6);sun.position.set(-8,18,8);sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-28;sun.shadow.camera.right=28;sun.shadow.camera.top=28;sun.shadow.camera.bottom=-28;sun.shadow.bias=-0.00025;scene.add(sun);
+// Procedural surface maps: lightweight textures generated locally, no extra downloads.
+function makeTexture(base, speckle, repeatX=1, repeatY=1, size=256){
+ const c=document.createElement('canvas');c.width=c.height=size;const ctx=c.getContext('2d');
+ ctx.fillStyle=base;ctx.fillRect(0,0,size,size);
+ for(let i=0;i<1800;i++){const x=Math.random()*size,y=Math.random()*size,r=.4+Math.random()*2.2;
+  ctx.globalAlpha=.035+Math.random()*.10;ctx.fillStyle=speckle;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
+ ctx.globalAlpha=1;
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(repeatX,repeatY);t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());return t;
+}
+const sandMap=makeTexture('#c6a77b','#735b3d',18,18),plasterMap=makeTexture('#b89a70','#604a32',3,2),
+ concreteMap=makeTexture('#515c5d','#172326',2,2),metalMap=makeTexture('#343c40','#a6b0ad',1,2);
+const mat=(c,r=.9,map=null)=>new THREE.MeshStandardMaterial({color:c,roughness:r,map});
+const sand=mat(0xffffff,1,sandMap),wall=mat(0xffffff,.96,plasterMap),dark=mat(0xffffff,.88,concreteMap),
+ blue=mat(0x367c91,.82),red=mat(0xa94b3e,.9),black=mat(0xffffff,.55,metalMap),white=mat(0xe5e3d6);
+const colliders=[];
+function box(x,y,z,sx,sy,sz,m){const o=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;scene.add(o);
+ if(Math.abs(x)<24&&Math.abs(z)<19)colliders.push({x,z,hx:sx/2,hz:sz/2});return o}
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(90,90),sand);floor.rotation.x=-Math.PI/2;floor.position.y=0;floor.receiveShadow=true;scene.add(floor);
+// Simple original desert training compound
+for(let i=-3;i<=3;i++){box(i*8,2,-17,7,4,.8,wall);box(i*8,2,17,7,4,.8,wall)}
+box(-22,2,0,.8,4,34,wall);box(22,2,0,.8,4,34,wall);
+for(const [x,z] of [[-10,-8],[8,-10],[-12,9],[11,8],[0,-13],[0,12]]){box(x,1.2,z,3,2.4,3,dark);box(x,2.5,z,3.2,.2,3.2,wall)}
+// doorway-like cover, barrels
+for(const [x,z] of [[-5,2],[5,-3],[-15,-5],[15,4]]){const b=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,1.5,12),mat(0x7b593d));b.position.set(x,.75,z);scene.add(b)}
+// distant skyline blocks
+for(let i=0;i<18;i++){let x=(Math.random()-.5)*65,z=(Math.random()-.5)*65;if(Math.abs(x)<24&&Math.abs(z)<19)continue;box(x,1+Math.random()*3,z,2+Math.random()*4,2+Math.random()*6,2+Math.random()*4,wall)}
+// First-person weapon and detailed tactical character models.
+const weapon=new THREE.Group();camera.add(weapon);weapon.position.set(.38,-.32,-.65);
+const gun=new THREE.Mesh(new THREE.BoxGeometry(.17,.14,.58),black);gun.position.set(0,0,-.15);weapon.add(gun);
+const slide=new THREE.Mesh(new THREE.BoxGeometry(.13,.07,.42),mat(0x596469,.48));slide.position.set(0,.075,-.19);weapon.add(slide);
+const barrel=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.42,10),dark);barrel.rotation.x=Math.PI/2;barrel.position.set(0,.025,-.54);weapon.add(barrel);
+const grip=new THREE.Mesh(new THREE.BoxGeometry(.1,.22,.14),black);grip.position.set(0,-.14,-.03);weapon.add(grip);
+const handMat=mat(0x8c674d,.9),glove=new THREE.Mesh(new THREE.BoxGeometry(.13,.12,.18),handMat);glove.position.set(-.12,-.12,-.18);weapon.add(glove);
+
+const bots=[];
+let chosenTeam='T';
+const sites=[
+ {id:'A',x:-13,z:-10,mesh:null,ring:null},
+ {id:'B',x:13,z:10,mesh:null,ring:null}
+];
+const siteMat=new THREE.MeshStandardMaterial({color:0xb52121,transparent:true,opacity:.19,roughness:.8,side:THREE.DoubleSide});
+const ringMat=new THREE.MeshStandardMaterial({color:0xff3939,emissive:0x5b0000,roughness:.45});
+for(const site of sites){
+ const pad=new THREE.Mesh(new THREE.CircleGeometry(2.7,48),siteMat);pad.rotation.x=-Math.PI/2;pad.position.set(site.x,.035,site.z);scene.add(pad);
+ const ring=new THREE.Mesh(new THREE.RingGeometry(2.45,2.62,48),ringMat);ring.rotation.x=-Math.PI/2;ring.position.set(site.x,.055,site.z);scene.add(ring);
+ const mark=new THREE.Mesh(new THREE.BoxGeometry(1.1,.045,.12),mat(0xffb0a0,.7));mark.position.set(site.x,.07,site.z);scene.add(mark);
+ const mark2=new THREE.Mesh(new THREE.BoxGeometry(.12,.045,1.1),mat(0xffb0a0,.7));mark2.position.set(site.x,.071,site.z);scene.add(mark2);
+ site.mesh=pad;site.ring=ring;
+}
+const bombMesh=new THREE.Group();
+const bombBody=new THREE.Mesh(new THREE.BoxGeometry(.38,.25,.24),mat(0x26343a,.6));bombMesh.add(bombBody);
+const bombLight=new THREE.Mesh(new THREE.SphereGeometry(.045,10,8),new THREE.MeshStandardMaterial({color:0xff2525,emissive:0xff0000,emissiveIntensity:2}));bombLight.position.set(.12,.1,.13);bombMesh.add(bombLight);scene.add(bombMesh);bombMesh.visible=false;
+
+function makeSoldier(x,z,team,index){
+ const g=new THREE.Group();
+ const isCT=team==='CT';
+ const uniform=mat(isCT?0x263f50:0x55533b,.94);
+ const vestMat=mat(isCT?0x172c38:0x34372a,.88);
+ const helmetMat=mat(isCT?0x263b48:0x494b36,.62);
+ const skin=mat(0x98745b,.95),bootMat=mat(0x171c1d,.8);
+ const body=new THREE.Mesh(new THREE.CapsuleGeometry(.34,.62,5,10),uniform);body.position.y=1.02;body.castShadow=true;g.add(body);
+ const vest=new THREE.Mesh(new THREE.BoxGeometry(.61,.48,.34),vestMat);vest.position.set(0,1.04,.015);vest.castShadow=true;g.add(vest);
+ // Armor plates and utility pouches
+ for(let k=-1;k<=1;k++){const pouch=new THREE.Mesh(new THREE.BoxGeometry(.14,.16,.12),mat(isCT?0x33434a:0x464333));pouch.position.set(k*.19,.86,.2);g.add(pouch)}
+ const head=new THREE.Mesh(new THREE.SphereGeometry(.235,16,12),skin);head.position.y=1.66;head.castShadow=true;g.add(head);
+ const helmet=new THREE.Mesh(new THREE.SphereGeometry(.255,16,10,0,Math.PI*2,0,Math.PI*.58),helmetMat);helmet.position.y=1.72;helmet.castShadow=true;g.add(helmet);
+ const visor=new THREE.Mesh(new THREE.BoxGeometry(.32,.075,.12),mat(isCT?0x111e26:0x252b25,.35));visor.position.set(0,1.65,.205);g.add(visor);
+ // Shoulder pads and arms
+ for(const side of [-1,1]){
+  const shoulder=new THREE.Mesh(new THREE.SphereGeometry(.17,10,8),vestMat);shoulder.position.set(side*.39,1.28,0);g.add(shoulder);
+  const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.105,.43,4,8),uniform);arm.position.set(side*.43,1.0,.04);arm.rotation.z=side*.13;arm.castShadow=true;g.add(arm);
+  const hand=new THREE.Mesh(new THREE.SphereGeometry(.105,8,8),glove);hand.position.set(side*.44,.72,.11);g.add(hand);
+  const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.13,.48,4,8),uniform);leg.position.set(side*.17,.43,0);leg.castShadow=true;g.add(leg);
+  const boot=new THREE.Mesh(new THREE.BoxGeometry(.23,.14,.34),bootMat);boot.position.set(side*.17,.12,.08);g.add(boot);
+ }
+ const pack=new THREE.Mesh(new THREE.BoxGeometry(.4,.48,.2),mat(isCT?0x20313a:0x3d402e));pack.position.set(0,1.12,-.25);g.add(pack);
+ // Rifle held across chest
+ const rifle=new THREE.Group();const rbody=new THREE.Mesh(new THREE.BoxGeometry(.09,.09,.72),mat(0x171d20,.55));rifle.add(rbody);
+ const rbarrel=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.38,8),dark);rbarrel.rotation.x=Math.PI/2;rbarrel.position.z=-.53;rifle.add(rbarrel);
+ const magazine=new THREE.Mesh(new THREE.BoxGeometry(.07,.2,.12),black);magazine.position.set(0,-.13,-.1);rifle.add(magazine);
+ rifle.position.set(.08,1.05,.27);rifle.rotation.x=-.08;g.add(rifle);
+ // Team-colored shoulder identifier
+ const patch=new THREE.Mesh(new THREE.BoxGeometry(.16,.12,.035),mat(isCT?0x4c9ac1:0xb84b36));patch.position.set(.405,1.29,.11);g.add(patch);
+ g.position.set(x,0,z);scene.add(g);
+ const bot={g,hp:100,fire:1+Math.random(),alive:true,team,index,planting:0,hit:0};bots.push(bot);return bot;
+}
+function spawnBots(){
+ for(const b of bots)scene.remove(b.g);bots.length=0;
+ const enemy=chosenTeam==='T'?'CT':'T';
+ makeSoldier(-8,-8,enemy,0);makeSoldier(9,-12,enemy,1);makeSoldier(13,10,enemy,2);
+}
+let active=false,health=100,ammo=30,reserve=90,kills=0,yaw=0,pitch=0,move={x:0,y:0},lookTouch=null,last=performance.now(),shotCooldown=0,aiming=false;
+const velocity=new THREE.Vector3(),keys={};let verticalVelocity=0,grounded=true,recoil=0,walkClock=0;
+let bomb={planted:false,timer:0,site:null,plantProgress:0,defuseProgress:0,enemyPlantClock:24,enemyPlantProgress:0};
+let interactHeld=false,toastCooldown=0;
+const $=id=>document.getElementById(id),stick=$('stick'),knob=$('knob');
+function hud(){
+ $('health').textContent=health;$('ammo').textContent=ammo+' / '+reserve;$('kills').textContent=kills;
+ $('objective').textContent=chosenTeam==='T'?(bomb.planted?'БОМБА УСТАНОВЛЕНА • ЗАЩИЩАЙТЕ ТOЧКУ':'ЗАЛОЖИТЕ БОМБУ НА A ИЛИ B'):(bomb.planted?'ОБЕЗВРЕДЬТЕ БОМБУ!':'ЗАЩИТИТЕ A И B • УСТРАНИТЕ ТЕРРОРИСТОВ');
+ $('plant').textContent=bomb.planted?(chosenTeam==='CT'?'ОБЕЗВРЕДИТЬ':'ЗАЩИЩАТЬ'):(chosenTeam==='T'?'ЗАЛОЖИТЬ':'ОЖИДАНИЕ');
+}
+function toast(t){const e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeout(toastCooldown);toastCooldown=setTimeout(()=>e.style.opacity=0,850)}
+function end(win){
+ active=false;$('overlay').classList.remove('hidden');$('intro').classList.add('hidden');$('result').classList.remove('hidden');
+ $('resultTitle').textContent=win?'ПОБЕДА':'ПОРАЖЕНИЕ';
+ $('resultText').textContent=win?(chosenTeam==='T'?'Бомба взорвалась. Точка захвачена!':'Бомба обезврежена или террористы устранены.'):'Операция провалена. Попробуй ещё раз.';
+}
+function reset(){
+ spawnBots();camera.position.set(0,1.7,8);velocity.set(0,0,0);verticalVelocity=0;grounded=true;recoil=0;walkClock=0;yaw=0;pitch=0;health=100;ammo=30;reserve=90;kills=0;
+ bomb={planted:false,timer:0,site:null,plantProgress:0,defuseProgress:0,enemyPlantClock:24,enemyPlantProgress:0};bombMesh.visible=false;interactHeld=false;
+ sites.forEach(s=>{s.ring.material=ringMat;s.ring.scale.setScalar(1)});
+ hud();active=true;$('overlay').classList.add('hidden');
+}
+$('start').onclick=reset;$('again').onclick=reset;
+$('pickT').onclick=()=>{chosenTeam='T';$('pickT').classList.add('selected');$('pickCT').classList.remove('selected')};
+$('pickCT').onclick=()=>{chosenTeam='CT';$('pickCT').classList.add('selected');$('pickT').classList.remove('selected')};
+function setStick(e){const r=stick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const l=Math.hypot(dx,dy),max=42;if(l>max){dx=dx/l*max;dy=dy/l*max}move.x=dx/max;move.y=dy/max;knob.style.transform=`translate(${dx}px,${dy}px)`}
+stick.addEventListener('pointerdown',e=>{stick.setPointerCapture(e.pointerId);setStick(e)});stick.addEventListener('pointermove',e=>{if(e.buttons||e.pressure)setStick(e)});function stopStick(){move={x:0,y:0};knob.style.transform='translate(0,0)'}stick.addEventListener('pointerup',stopStick);stick.addEventListener('pointercancel',stopStick);
+renderer.domElement.addEventListener('pointerdown',e=>{if(e.clientX<innerWidth*.38)return;lookTouch={id:e.pointerId,x:e.clientX,y:e.clientY};renderer.domElement.setPointerCapture(e.pointerId)});
+renderer.domElement.addEventListener('pointermove',e=>{if(!lookTouch||lookTouch.id!==e.pointerId)return;const dx=e.clientX-lookTouch.x,dy=e.clientY-lookTouch.y;yaw-=dx*.005;pitch-=dy*.004;pitch=Math.max(-.7,Math.min(.7,pitch));lookTouch.x=e.clientX;lookTouch.y=e.clientY});
+renderer.domElement.addEventListener('pointerup',()=>lookTouch=null);renderer.domElement.addEventListener('pointercancel',()=>lookTouch=null);
+renderer.domElement.addEventListener('click',()=>{if(innerWidth>=700&&renderer.domElement.requestPointerLock)renderer.domElement.requestPointerLock()});
+document.addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){yaw-=e.movementX*.0024;pitch-=e.movementY*.0022;pitch=Math.max(-.72,Math.min(.72,pitch))}});
+document.addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='KeyR')reloadWeapon();if(e.code==='Space'){e.preventDefault();jump()}if(e.code==='KeyE')interactHeld=true});
+document.addEventListener('keyup',e=>{keys[e.code]=false;if(e.code==='KeyE')interactHeld=false});
+renderer.domElement.addEventListener('mousedown',e=>{if(e.button===0)shoot();if(e.button===2)toggleAim(true)});
+document.addEventListener('mouseup',e=>{if(e.button===2)toggleAim(false)});
+renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+function reloadWeapon(){if(!active||ammo===30||reserve===0)return;const n=Math.min(30-ammo,reserve);ammo+=n;reserve-=n;hud();toast('ПЕРЕЗАРЯДКА')}
+function toggleAim(on){aiming=on;camera.fov=aiming?54:75;camera.updateProjectionMatrix();$('aim').style.background=aiming?'#286b70':'#14232cdd'}
+function jump(){if(active&&grounded){verticalVelocity=5.2;grounded=false}}
+function shoot(){
+ if(!active||shotCooldown>0)return;if(ammo<=0){toast('НЕТ ПАТРОНОВ');return}ammo--;shotCooldown=.22;recoil=Math.min(.09,recoil+.035);hud();weapon.position.z=-.58;setTimeout(()=>weapon.position.z=-.65,70);
+ const dir=new THREE.Vector3(0,0,-1).applyEuler(camera.rotation),ray=new THREE.Raycaster(camera.position,dir,0,45);let best=null,dist=45;
+ for(const b of bots){if(!b.alive)continue;const center=b.g.position.clone().add(new THREE.Vector3(0,1.1,0));const d=ray.ray.distanceToPoint(center);const along=center.clone().sub(camera.position).dot(dir);if(d<.78&&along>0&&along<dist){best=b;dist=along}}
+ if(best){best.hp-=50;best.g.traverse(o=>{if(o.isMesh)o.material=mat(0xff9a83)});setTimeout(()=>{if(best.alive)best.g.traverse(o=>{if(o.isMesh){const n=o.name;o.material=mat(0x58605a)}})},90);if(best.hp<=0){best.alive=false;scene.remove(best.g);kills++;hud();toast('ПРОТИВНИК УСТРАНЁН');if(bots.every(b=>!b.alive)&&chosenTeam==='CT'&&!bomb.planted)setTimeout(()=>end(true),500)}}
+}
+$('fire').addEventListener('pointerdown',e=>{e.preventDefault();shoot();$('fire').setPointerCapture(e.pointerId);$('fire').dataset.down='1'});$('fire').addEventListener('pointerup',()=>delete $('fire').dataset.down);$('fire').addEventListener('pointercancel',()=>delete $('fire').dataset.down);
+$('reload').onclick=reloadWeapon;$('aim').onclick=()=>toggleAim(!aiming);$('jump').addEventListener('pointerdown',e=>{e.preventDefault();jump()});
+$('plant').addEventListener('pointerdown',e=>{e.preventDefault();interactHeld=true;$('plant').setPointerCapture(e.pointerId)});$('plant').addEventListener('pointerup',()=>interactHeld=false);$('plant').addEventListener('pointercancel',()=>interactHeld=false);
+function nearestSite(){let best=null,d=999;for(const s of sites){const n=Math.hypot(camera.position.x-s.x,camera.position.z-s.z);if(n<d){d=n;best=s}}return {site:best,distance:d}}
+function plantBomb(site,byPlayer=true){
+ bomb.planted=true;bomb.timer=35;bomb.site=site;bomb.plantProgress=0;bomb.enemyPlantProgress=0;
+ bombMesh.position.set(site.x,.23,site.z);bombMesh.visible=true;site.ring.material=new THREE.MeshStandardMaterial({color:0xff2525,emissive:0x8f0000,emissiveIntensity:1.2});
+ toast('БОМБА УСТАНОВЛЕНА НА '+site.id);hud();
+}
+function update(dt){
+ if(!active)return;
+ shotCooldown=Math.max(0,shotCooldown-dt);recoil=Math.max(0,recoil-dt*.10);
+ if($('fire').dataset.down==='1')shoot();
+ let ix=move.x,iy=move.y;
+ if(keys.KeyA||keys.ArrowLeft)ix-=1;if(keys.KeyD||keys.ArrowRight)ix+=1;if(keys.KeyW||keys.ArrowUp)iy-=1;if(keys.KeyS||keys.ArrowDown)iy+=1;
+ const il=Math.hypot(ix,iy);if(il>1){ix/=il;iy/=il}
+ const forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw)),right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+ const sprint=!!(keys.ShiftLeft||keys.ShiftRight),speed=sprint?7.1:4.8,target=forward.clone().multiplyScalar(-iy*speed).add(right.clone().multiplyScalar(ix*speed));
+ const accel=(il>0?18:13)*dt;velocity.x+=THREE.MathUtils.clamp(target.x-velocity.x,-accel,accel);velocity.z+=THREE.MathUtils.clamp(target.z-velocity.z,-accel,accel);
+ const radius=.38;
+ function blocked(x,z){if(x<-21.4||x>21.4||z<-16.2||z>16.2)return true;return colliders.some(c=>x+radius>c.x-c.hx&&x-radius<c.x+c.hx&&z+radius>c.z-c.hz&&z-radius<c.z+c.hz)}
+ let nx=camera.position.x+velocity.x*dt;if(!blocked(nx,camera.position.z))camera.position.x=nx;else velocity.x=0;
+ let nz=camera.position.z+velocity.z*dt;if(!blocked(camera.position.x,nz))camera.position.z=nz;else velocity.z=0;
+ verticalVelocity-=13.5*dt;camera.position.y+=verticalVelocity*dt;if(camera.position.y<=1.7){camera.position.y=1.7;verticalVelocity=0;grounded=true}
+ walkClock+=dt*Math.min(1,Math.hypot(velocity.x,velocity.z)/2.5);const moving=Math.hypot(velocity.x,velocity.z)>.25,bob=moving&&grounded?Math.sin(walkClock*10)*.025:0;
+ camera.rotation.order='YXZ';camera.rotation.set(pitch-recoil,yaw,0);weapon.position.y=-.32+bob;weapon.position.x=.38+(moving?Math.cos(walkClock*5)*.012:0);
+
+ const near=nearestSite();
+ if(chosenTeam==='T'&&!bomb.planted){
+  if(interactHeld&&near.distance<2.7){bomb.plantProgress+=dt;if(bomb.plantProgress>=3)plantBomb(near.site)}
+  else bomb.plantProgress=Math.max(0,bomb.plantProgress-dt*.8);
+  if(near.distance<2.7){$('plant').style.opacity='1';$('hint').textContent='В КРАСНОЙ ЗОНЕ '+near.site.id+' • УДЕРЖИВАЙ E / ЗАЛОЖИТЬ'}
+  else {$('plant').style.opacity='.72';$('hint').textContent='НАЙДИ КРАСНУЮ ЗОНУ A ИЛИ B'}
+ }
+ if(chosenTeam==='CT'&&!bomb.planted){
+  bomb.enemyPlantClock-=dt;
+  $('hint').textContent='НЕ ДАЙТЕ ТЕРРОРИСТАМ УСТАНОВИТЬ БОМБУ';
+  if(bomb.enemyPlantClock<=0){const site=sites[1];plantBomb(site,false)}
+ }
+ if(chosenTeam==='CT'&&bomb.planted){
+  const d=Math.hypot(camera.position.x-bomb.site.x,camera.position.z-bomb.site.z);
+  $('plant').textContent='ОБЕЗВРЕДИТЬ';
+  $('hint').textContent=d<2.7?'УДЕРЖИВАЙ E / ОБЕЗВРЕДИТЬ':'ПОДОЙДИ К БОМБЕ НА '+bomb.site.id;
+  if(interactHeld&&d<2.7){bomb.defuseProgress+=dt;if(bomb.defuseProgress>=4){bomb.planted=false;bombMesh.visible=false;toast('БОМБА ОБЕЗВРЕЖЕНА');setTimeout(()=>end(true),700)}}
+  else bomb.defuseProgress=Math.max(0,bomb.defuseProgress-dt*.6);
+ }
+ if(bomb.planted){
+  bomb.timer-=dt;bombLight.scale.setScalar(1+Math.sin(performance.now()*.018)*.22);
+  bombMesh.rotation.y+=dt*1.2;
+  if(bomb.timer<=0){bomb.planted=false;bombMesh.visible=false;if(chosenTeam==='T')end(true);else end(false)}
+  else if(Math.floor(bomb.timer)!==Math.floor(bomb.timer+dt))toast('ДО ВЗРЫВА: '+Math.ceil(bomb.timer)+' СЕК');
+ }
+ for(const b of bots){
+  if(!b.alive)continue;
+  const dx=camera.position.x-b.g.position.x,dz=camera.position.z-b.g.position.z,d=Math.hypot(dx,dz);
+  let tx=camera.position.x,tz=camera.position.z;
+  if(chosenTeam==='CT'&&!bomb.planted){tx=sites[1].x;tz=sites[1].z}
+  if(d>3){const step=Math.min(dt*(b.team==='T'?1.15:1.0),Math.max(.1,d-2.7)),bx=b.g.position.x+(tx-b.g.position.x)/Math.max(d,.01)*step,bz=b.g.position.z+(tz-b.g.position.z)/Math.max(d,.01)*step;
+   const hit=colliders.some(c=>bx+.35>c.x-c.hx&&bx-.35<c.x+c.hx&&bz+.35>c.z-c.hz&&bz-.35<c.z+c.hz);if(!hit){b.g.position.x=bx;b.g.position.z=bz}}
+  b.g.lookAt(camera.position.x,0,camera.position.z);b.fire-=dt;
+  if(d<14&&b.fire<=0){b.fire=1.4+Math.random()*1.5;if(Math.random()<.34){health=Math.max(0,health-7);hud();toast('ПОЛУЧЕН УРОН');if(health<=0)end(false)}}
+ }
+}
+function loop(now){requestAnimationFrame(loop);const dt=Math.min(.04,(now-last)/1000);last=now;update(dt);renderer.render(scene,camera)}requestAnimationFrame(loop);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script>
+</body>
+</html>
